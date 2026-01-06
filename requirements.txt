@@ -1,0 +1,9 @@
+pyjwt
+fastapi
+uvicorn
+python-dotenv
+pymongo
+requests
+bcrypt
+pytz
+pydantic[email]
