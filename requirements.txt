@@ -7,3 +7,5 @@ requests
 bcrypt
 pytz
 pydantic[email]
+slowapi
+fastapi-cors

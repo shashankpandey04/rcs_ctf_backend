@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Request
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from Utils.Mongo import db
@@ -9,11 +9,14 @@ import bcrypt
 from datetime import datetime, timedelta
 import pytz
 from Utils.Utils import generate_refresh_token
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 load_dotenv()
 
 router = APIRouter()
 JWT_SECRET = os.getenv("JWT_SECRET")
+limiter = Limiter(key_func=get_remote_address)
 
 # Pydantic models for request validation
 class TeamMember(BaseModel):
@@ -48,7 +51,8 @@ class ChangePasswordRequest(BaseModel):
     token: str
 
 @router.post("/register")
-async def register(data: RegisterRequest):
+@limiter.limit("20/hour")
+async def register(request: Request, data: RegisterRequest):
     """
     Register a new user with team details.
     Also creates individual accounts for each team member.
@@ -191,7 +195,8 @@ async def register(data: RegisterRequest):
     return response
 
 @router.post("/login")
-async def login(data: LoginRequest):
+@limiter.limit("30/15minutes")
+async def login(request: Request, data: LoginRequest):
     """
     Login with email and password
     """
@@ -236,7 +241,8 @@ async def login(data: LoginRequest):
     }
 
 @router.post("/refresh")
-async def refresh_token_endpoint(data: RefreshTokenRequest):
+@limiter.limit("100/hour")
+async def refresh_token_endpoint(request: Request, data: RefreshTokenRequest):
     """
     Refresh access token using refresh token
     """
@@ -267,7 +273,8 @@ async def refresh_token_endpoint(data: RefreshTokenRequest):
     }
 
 @router.post("/logout")
-async def logout(data: LogoutRequest):
+@limiter.limit("50/hour")
+async def logout(request: Request, data: LogoutRequest):
     """
     Logout by invalidating refresh token
     """
@@ -281,7 +288,8 @@ async def logout(data: LogoutRequest):
     return {"detail": "Logged out successfully"}
 
 @router.get("/me")
-async def get_current_user(token: str):
+@limiter.limit("100/minute")
+async def get_current_user(request: Request, token: str):
     """
     Get current user information from token
     """
@@ -315,7 +323,8 @@ async def get_current_user(token: str):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.post("/change-password")
-async def change_password(data: ChangePasswordRequest):
+@limiter.limit("10/hour")
+async def change_password(request: Request, data: ChangePasswordRequest):
     """
     Change user password. Requires old password verification.
     Useful for team members to change from their initial contact number password.
